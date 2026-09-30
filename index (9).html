@@ -1,0 +1,922 @@
+<title>Cómo leer un informe de marcapasos</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: cabecera compacta con autoría, índice lateral fijo (chips en móvil) y capítulos de una sola columna de lectura.
+   Identidad: azul marino con un único acento ámbar, oscuro por defecto. */
+:root{
+  --bg:#0B2238; --surface:#11324D; --surface2:#163C5A; --fg:#E7EEF5; --muted:#A3B6C8; --line:#26506F;
+  --accent:#C4923A; --accent-ink:#0B2238; --link:#E0B45C;
+  --ok:#67B896; --warn:#E3A94F; --crit:#EA7D74;
+  --trace:#E7EEF5; --spike:#E0B45C;
+  --f-display:'Space Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --f-body:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#F4F7FA; --surface:#FFFFFF; --surface2:#E9F0F6; --fg:#0D2B45; --muted:#4A657C; --line:#C8D6E3;
+    --accent:#9A6A17; --accent-ink:#FFFFFF; --link:#8A5B0E;
+    --ok:#1F7657; --warn:#8F5A00; --crit:#B0342B;
+    --trace:#0D2B45; --spike:#B07A1C;
+    color-scheme:light;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#F4F7FA; --surface:#FFFFFF; --surface2:#E9F0F6; --fg:#0D2B45; --muted:#4A657C; --line:#C8D6E3;
+  --accent:#9A6A17; --accent-ink:#FFFFFF; --link:#8A5B0E;
+  --ok:#1F7657; --warn:#8F5A00; --crit:#B0342B;
+  --trace:#0D2B45; --spike:#B07A1C;
+  color-scheme:light;
+}
+:root[data-theme="dark"]{
+  --bg:#0B2238; --surface:#11324D; --surface2:#163C5A; --fg:#E7EEF5; --muted:#A3B6C8; --line:#26506F;
+  --accent:#C4923A; --accent-ink:#0B2238; --link:#E0B45C;
+  --ok:#67B896; --warn:#E3A94F; --crit:#EA7D74;
+  --trace:#E7EEF5; --spike:#E0B45C;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:5.5rem}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:16px;line-height:1.65;padding-inline:16px;padding-block:0 4rem}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+a{color:var(--link);text-underline-offset:2px}
+a:focus-visible,button:focus-visible,summary:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;line-height:1.2;margin:0}
+p{margin:0 0 1rem}
+ul,ol{margin:0 0 1rem;padding-left:1.3rem}
+li{margin-bottom:.35rem}
+strong{font-weight:600}
+code,.mono{font-family:var(--f-mono);font-size:.9em}
+
+/* Cabecera */
+.hero{max-width:1120px;margin-inline:auto;padding-block:2.5rem 1.75rem;border-bottom:1px solid var(--line)}
+.eyebrow{font-family:var(--f-mono);font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin:0 0 .9rem}
+.hero h1{font-size:clamp(2rem,5.4vw,3.3rem);font-weight:700;max-width:16ch}
+.hero .sub{color:var(--muted);font-size:1.08rem;max-width:58ch;margin:1rem 0 1.4rem}
+.byline{display:flex;flex-wrap:wrap;gap:.35rem 1.4rem;font-size:.92rem;color:var(--muted);margin:0}
+.byline strong{color:var(--fg)}
+.disclaimer{font-size:.84rem;color:var(--muted);max-width:70ch;margin:1rem 0 0}
+
+/* Estructura */
+.layout{max-width:1120px;margin-inline:auto;display:grid;grid-template-columns:minmax(0,1fr);gap:0 3rem}
+.toc{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);margin-inline:-16px;padding:.6rem 16px;border-bottom:1px solid var(--line);display:flex;gap:.4rem;overflow-x:auto;scrollbar-width:thin}
+.toc-title{display:none}
+.toc a{flex:none;font-size:.84rem;text-decoration:none;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:.3rem .8rem;white-space:nowrap}
+.toc a[aria-current="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+@media (min-width:980px){
+  .layout{grid-template-columns:230px minmax(0,1fr)}
+  .toc{top:1.5rem;margin:0;padding:0;border:0;flex-direction:column;overflow:visible;align-self:start;background:transparent;gap:.1rem;padding-block:2rem}
+  .toc-title{display:block;font-family:var(--f-mono);font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:.6rem}
+  .toc a{border:0;border-radius:6px;padding:.4rem .6rem;white-space:normal;font-size:.9rem}
+}
+main{min-width:0;max-width:760px;padding-block:2rem 0}
+.chapter{padding-block:2.4rem 1.2rem;border-bottom:1px solid var(--line)}
+.chapter:first-child{padding-top:.6rem}
+.ch-label{font-family:var(--f-mono);font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin:0 0 .5rem}
+.chapter h2{font-size:clamp(1.55rem,3.6vw,2.05rem);margin-bottom:.9rem;font-weight:700}
+.chapter h3{font-size:1.15rem;margin:1.8rem 0 .6rem;font-weight:700}
+.lead{font-size:1.08rem;color:var(--muted)}
+.refs{font-size:.84rem;color:var(--muted);margin-top:1.6rem}
+sup.r{font-family:var(--f-mono);font-size:.68rem;margin-left:1px}
+sup.r a{text-decoration:none}
+
+/* Avisos */
+.callout{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:1rem 1.1rem;margin:1.3rem 0}
+.callout .tag{display:inline-block;font-family:var(--f-mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.4rem;color:var(--accent)}
+.callout.alert .tag{color:var(--crit)}
+.callout.alert{border-color:var(--crit)}
+.callout.tip .tag{color:var(--ok)}
+.callout p:last-child,.callout ul:last-child{margin-bottom:0}
+
+/* Tablas */
+.tablewrap{overflow-x:auto;margin:1.2rem 0;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:.92rem}
+th,td{text-align:left;vertical-align:top;padding:.65rem .8rem;border-bottom:1px solid var(--line)}
+th{font-family:var(--f-mono);font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500;background:var(--surface2)}
+tr:last-child td{border-bottom:0}
+td.num,th.num{font-variant-numeric:tabular-nums}
+
+/* Trazos */
+.fig{margin:1.4rem 0;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.fig figcaption{padding:.7rem 1rem;font-size:.86rem;color:var(--muted);border-top:1px solid var(--line)}
+.fig .scroll{overflow-x:auto}
+.strip{min-width:540px;padding:.6rem 1rem 0}
+.strip-title{font-family:var(--f-mono);font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:.5rem 0 0}
+.strip svg{display:block;width:100%;height:auto}
+.strip .base{stroke:var(--trace);fill:none;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
+.strip .sp{stroke:var(--spike);stroke-width:1.8}
+.strip .noise{stroke:var(--muted);fill:none;stroke-width:1}
+.strip text{font-family:var(--f-mono);font-size:10px;fill:var(--muted)}
+
+/* Decodificador NBG */
+.tool{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:1.1rem;margin:1.3rem 0}
+.tool h3{margin-top:0!important}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.8rem;margin-bottom:1rem}
+.fields label{display:flex;flex-direction:column;gap:.3rem;font-size:.8rem;color:var(--muted);font-family:var(--f-mono);letter-spacing:.04em}
+select,input[type=checkbox]{font:inherit}
+select{background:var(--surface2);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:.5rem .6rem;font-family:var(--f-body);font-size:.92rem;width:100%}
+.checkline{flex-direction:row!important;align-items:center;gap:.5rem!important;padding-top:1.2rem}
+.code-out{font-family:var(--f-mono);font-size:1.9rem;letter-spacing:.14em;color:var(--accent);margin:0 0 .5rem}
+.code-desc{margin:0;color:var(--fg)}
+.presets{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:1rem}
+.chip{border:1px solid var(--line);background:var(--surface2);color:var(--fg);border-radius:999px;padding:.3rem .8rem;font-family:var(--f-mono);font-size:.8rem;cursor:pointer}
+.chip:hover{border-color:var(--accent)}
+
+/* Informe de ejemplo */
+details.rep{border-bottom:1px solid var(--line)}
+details.rep:last-child{border-bottom:0}
+details.rep summary{cursor:pointer;list-style:none;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:.4rem 1rem;padding:.7rem .9rem;align-items:baseline}
+details.rep summary::-webkit-details-marker{display:none}
+details.rep summary .k{font-weight:600}
+details.rep summary .v{font-family:var(--f-mono);font-size:.88rem;color:var(--accent)}
+details.rep[open] summary{background:var(--surface2)}
+details.rep .body{padding:.2rem .9rem 1rem;font-size:.93rem;color:var(--muted)}
+details.rep .body p{margin:.5rem 0 0}
+.rephead{padding:.75rem .9rem;background:var(--surface2);font-family:var(--f-mono);font-size:.76rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)}
+@media (max-width:520px){details.rep summary{grid-template-columns:minmax(0,1fr)}}
+
+/* Preguntas */
+.quiz{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:1.2rem;margin:1.2rem 0}
+.q-top{display:flex;flex-wrap:wrap;justify-content:space-between;gap:.5rem 1rem;font-family:var(--f-mono);font-size:.78rem;letter-spacing:.06em;color:var(--muted);margin-bottom:.9rem}
+.q-bar{height:4px;background:var(--surface2);border-radius:4px;margin-bottom:1.1rem;overflow:hidden}
+.q-bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .25s}
+.q-prompt{font-family:var(--f-display);font-size:1.18rem;line-height:1.35;margin:0 0 1rem;font-weight:500}
+.opts{display:grid;gap:.55rem;margin-bottom:1rem}
+.opt{text-align:left;background:var(--surface2);color:var(--fg);border:1px solid var(--line);border-radius:9px;padding:.7rem .9rem;font:inherit;font-size:.95rem;cursor:pointer;display:flex;gap:.7rem}
+.opt:hover:not([disabled]){border-color:var(--accent)}
+.opt .l{font-family:var(--f-mono);color:var(--muted);flex:none}
+.opt[disabled]{cursor:default}
+.opt.right{border-color:var(--ok);background:var(--surface2)}
+.opt.right .l{color:var(--ok)}
+.opt.wrong{border-color:var(--crit)}
+.opt.wrong .l{color:var(--crit)}
+.fb{border-top:1px solid var(--line);padding-top:.9rem;font-size:.94rem}
+.fb .verdict{font-family:var(--f-mono);font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;margin:0 0 .3rem}
+.fb .verdict.ok{color:var(--ok)}
+.fb .verdict.no{color:var(--crit)}
+.btn{background:var(--accent);color:var(--accent-ink);border:0;border-radius:9px;padding:.65rem 1.1rem;font:inherit;font-weight:600;font-size:.94rem;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--fg);border:1px solid var(--line)}
+.q-actions{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:1rem;align-items:center}
+.q-opts{display:flex;align-items:center;gap:.5rem;font-size:.86rem;color:var(--muted);margin-top:1rem}
+.score{font-family:var(--f-display);font-size:2.6rem;font-weight:700;color:var(--accent);margin:.2rem 0}
+.bd{display:grid;gap:.4rem;margin:1rem 0}
+.bd div{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.8rem;font-size:.92rem;border-bottom:1px solid var(--line);padding-bottom:.35rem}
+.bd .n{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+
+/* Bibliografía */
+.bib ol{padding-left:0;list-style:none;display:grid;gap:.5rem;margin-bottom:1.4rem}
+.bib li{display:grid;grid-template-columns:2.4rem minmax(0,1fr);gap:.4rem;font-size:.9rem;margin:0}
+.bib li .n{font-family:var(--f-mono);color:var(--accent)}
+.bib li a{overflow-wrap:anywhere}
+.bib h3{margin-top:1.4rem}
+footer.end{max-width:760px;font-size:.84rem;color:var(--muted);padding-top:1.6rem}
+</style>
+
+<header class="hero">
+  <p class="eyebrow">Guía clínica · Dispositivos cardiacos implantables</p>
+  <h1>Cómo leer un informe de marcapasos</h1>
+  <p class="sub">Marcapasos, desfibriladores, resincronizadores y dispositivos sin cables, explicados para el médico que no es cardiólogo: qué es cada uno, cómo se lee su interrogación y qué hacer cuando algo falla.</p>
+  <p class="byline"><span><strong>Dr. Juan Fernando Carvajal Estupiñán</strong></span><span>Cardiólogo e internista</span><span>Bucaramanga, Colombia</span><span class="mono">Versión 1.0 · septiembre de 2026</span></p>
+  <p class="disclaimer">Material educativo basado en las guías y consensos citados en la bibliografía. No reemplaza el criterio clínico ni la valoración por electrofisiología. Los valores numéricos de los ejemplos son ilustrativos y varían según fabricante y modelo.</p>
+</header>
+
+<div class="layout">
+<nav class="toc" aria-label="Capítulos">
+  <span class="toc-title">Capítulos</span>
+  <a href="#c1">1 · Código y dispositivo</a>
+  <a href="#c2">2 · El informe</a>
+  <a href="#c3">3 · ECG estimulado</a>
+  <a href="#c4">4 · Fallas</a>
+  <a href="#c5">5 · DAI y choques</a>
+  <a href="#c6">6 · TRC y fisiológica</a>
+  <a href="#c7">7 · Sin cables y S-ICD</a>
+  <a href="#c8">8 · Cirugía, RM, imán</a>
+  <a href="#c9">9 · Infección y remoto</a>
+  <a href="#c10">10 · Preguntas</a>
+  <a href="#bib">Bibliografía</a>
+</nav>
+<main>
+<section class="chapter" id="c1">
+  <p class="ch-label">Capítulo 1</p>
+  <h2>El código del marcapasos y cómo saber qué dispositivo tiene su paciente</h2>
+  <p class="lead">Antes de interpretar nada hay que responder una pregunta: ¿qué tiene implantado este paciente? La tarjeta del dispositivo, la historia clínica y la radiografía de tórax bastan casi siempre.</p>
+
+  <h3>Los cinco tipos de dispositivo</h3>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Dispositivo</th><th>Qué hace</th><th>Cómo se reconoce</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Marcapasos</strong> (1 o 2 electrodos)</td><td>Estimula cuando el ritmo propio es lento o hay bloqueo AV. No trata taquicardias.</td><td>Generador infraclavicular; uno o dos electrodos finos (aurícula y/o ventrículo derecho).</td></tr>
+      <tr><td><strong>DAI</strong> transvenoso</td><td>Detecta y trata TV/FV con estimulación antitaquicardia o choque. Además puede funcionar como marcapasos<sup class="r"><a href="#r27">27</a></sup>.</td><td>Electrodo ventricular con una o dos bobinas de choque, visibles como tramos gruesos y radiopacos<sup class="r"><a href="#r28">28</a></sup>.</td></tr>
+      <tr><td><strong>TRC</strong> (CRT-P o CRT-D)</td><td>Estimula ambos ventrículos para resincronizarlos en insuficiencia cardiaca. El CRT-D suma función de desfibrilador.</td><td>Tercer electrodo en una rama del seno coronario, sobre la pared lateral del ventrículo izquierdo.</td></tr>
+      <tr><td><strong>Marcapasos sin cables</strong></td><td>Cápsula autónoma dentro del corazón, sin bolsillo ni electrodos<sup class="r"><a href="#r7">7</a></sup>.</td><td>Cápsula pequeña en el ventrículo (o aurícula) derecho en la radiografía; sin generador visible bajo la piel.</td></tr>
+      <tr><td><strong>DAI subcutáneo o extravascular</strong></td><td>Desfibrila con electrodo fuera de las cavidades cardiacas<sup class="r"><a href="#r11">11</a></sup>.</td><td>Generador lateral izquierdo y electrodo bajo la piel junto al esternón (subcutáneo) o bajo el esternón (extravascular).</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="callout tip"><span class="tag">Punto clave</span>
+    <p>Un DAI transvenoso convencional tiene todas las funciones de un marcapasos más la capacidad de tratar taquiarritmias ventriculares<sup class="r"><a href="#r27">27</a></sup>. Que un paciente con DAI tenga espigas en el ECG es normal.</p>
+  </div>
+
+  <h3>El código NBG de cinco letras</h3>
+  <p>Describe cómo se comporta el dispositivo. En la práctica se leen las tres primeras letras, a veces con una cuarta (<span class="mono">R</span>, modulación de frecuencia).</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Posición</th><th>Significa</th><th>Letras</th></tr></thead>
+    <tbody>
+      <tr><td class="num">I</td><td>Cámara estimulada</td><td class="mono">A · V · D (ambas) · O</td></tr>
+      <tr><td class="num">II</td><td>Cámara sensada</td><td class="mono">A · V · D · O</td></tr>
+      <tr><td class="num">III</td><td>Respuesta a lo sensado</td><td class="mono">I (inhibe) · T (dispara) · D (ambas) · O</td></tr>
+      <tr><td class="num">IV</td><td>Modulación de frecuencia</td><td class="mono">R · O</td></tr>
+      <tr><td class="num">V</td><td>Estimulación multisitio</td><td class="mono">A · V · D · O</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="tool" id="nbgTool">
+    <h3>Traductor de código</h3>
+    <div class="fields">
+      <label>I · Estimula
+        <select id="nbgA"><option>A</option><option selected>V</option><option>D</option><option>O</option></select></label>
+      <label>II · Sensa
+        <select id="nbgB"><option>A</option><option selected>V</option><option>D</option><option>O</option></select></label>
+      <label>III · Responde
+        <select id="nbgC"><option selected>I</option><option>T</option><option>D</option><option>O</option></select></label>
+      <label class="checkline"><input type="checkbox" id="nbgR"> IV · con modulación (R)</label>
+    </div>
+    <p class="code-out" id="nbgOut" aria-live="polite">VVI</p>
+    <p class="code-desc" id="nbgDesc"></p>
+    <div class="presets" aria-label="Códigos frecuentes">
+      <button class="chip" type="button" data-p="AAI">AAI</button>
+      <button class="chip" type="button" data-p="VVI">VVI</button>
+      <button class="chip" type="button" data-p="VVIR">VVIR</button>
+      <button class="chip" type="button" data-p="DDD">DDD</button>
+      <button class="chip" type="button" data-p="DDDR">DDDR</button>
+      <button class="chip" type="button" data-p="VOO">VOO</button>
+      <button class="chip" type="button" data-p="VDD">VDD</button>
+    </div>
+  </div>
+
+  <h3>Dónde buscar la información</h3>
+  <ul>
+    <li><strong>Tarjeta del paciente:</strong> fabricante, modelo, fecha de implante y tipo de dispositivo.</li>
+    <li><strong>Historia clínica:</strong> indicación del implante y último control.</li>
+    <li><strong>Radiografía de tórax:</strong> número de electrodos, bobinas de choque, electrodo en seno coronario, cápsula intracardiaca.</li>
+    <li><strong>Clínica de dispositivos:</strong> ellos tienen el programador del fabricante correspondiente. Cada marca usa el suyo.</li>
+  </ul>
+  <p class="refs">Fuentes: <a href="#r27">27</a>, <a href="#r28">28</a>, <a href="#r7">7</a>, <a href="#r11">11</a>.</p>
+</section>
+
+<section class="chapter" id="c2">
+  <p class="ch-label">Capítulo 2</p>
+  <h2>Anatomía del informe de interrogación</h2>
+  <p class="lead">El informe reúne mucha información, pero solo unas pocas líneas cambian decisiones. Empiece siempre por el modo programado, la frecuencia mínima y el límite superior de seguimiento<sup class="r"><a href="#r13">13</a></sup>.</p>
+
+  <h3>Informe de ejemplo, campo por campo</h3>
+  <p>Toque cada fila para ver qué significa y cuándo debe preocuparle. Los valores son ilustrativos.</p>
+  <div class="tablewrap" style="border-radius:10px">
+    <div class="rephead">Marcapasos bicameral · ejemplo didáctico</div>
+
+    <details class="rep"><summary><span class="k">Batería</span><span class="v">2,78 V · ERI en &gt; 3 años</span></summary>
+      <div class="body"><p><strong>ERI</strong> (indicador de recambio electivo) significa que se debe programar el cambio del generador. Todavía quedan meses de funcionamiento. <strong>EOL</strong> (fin de vida) es la urgencia real.</p><p>El informe suele estimar la longevidad en años; esa cifra depende del porcentaje de estimulación y de la salida programada.</p></div></details>
+
+    <details class="rep"><summary><span class="k">Modo y frecuencias</span><span class="v">DDDR · 60 / 130 lpm</span></summary>
+      <div class="body"><p>Modo, frecuencia mínima (por debajo de ella el dispositivo estimula) y frecuencia máxima de seguimiento. Un paciente con taquicardia sinusal y dispositivo bicameral no se puede «frenar» reprogramando: el dispositivo sigue toda actividad auricular hasta el límite superior<sup class="r"><a href="#r13">13</a></sup>.</p></div></details>
+
+    <details class="rep"><summary><span class="k">Estimulación auricular / ventricular</span><span class="v">AP 22 % · VP 3 %</span></summary>
+      <div class="body"><p>Porcentaje del tiempo estimulado. <strong>VP bajo</strong> con conducción AV propia es lo esperado en enfermedad del nodo. <strong>VP alto</strong> sostenido en estimulación del ventrículo derecho, sobre todo si baja la FEVI, sugiere miocardiopatía inducida por estimulación; la guía de 2018 prefiere técnicas más fisiológicas si se espera estimular más del 40 % del tiempo<sup class="r"><a href="#r33">33</a></sup>. Un aumento relativo de 30 % del VP respecto al control previo es una alerta usada en seguimiento remoto<sup class="r"><a href="#r16">16</a></sup>.</p></div></details>
+
+    <details class="rep"><summary><span class="k">Umbral de captura</span><span class="v">A 0,75 V · V 0,625 V a 0,4 ms</span></summary>
+      <div class="body"><p>Energía mínima que despolariza la cámara. Lo que importa es la <strong>tendencia</strong>: un umbral que sube entre controles apunta a problema del electrodo, del tejido (fibrosis, isquemia) o metabólico (hiperpotasemia, algunos antiarrítmicos). La salida se programa con un margen sobre el umbral; un margen de seguridad amplio es la norma.</p></div></details>
+
+    <details class="rep"><summary><span class="k">Sensado</span><span class="v">P 3,2 mV · R 12 mV</span></summary>
+      <div class="body"><p>Amplitud de la señal propia que el dispositivo puede detectar. Una amplitud baja o cambiante favorece el <strong>subsensado</strong>; señales espurias (miopotenciales, interferencia) causan <strong>sobresensado</strong>. Los umbrales de sensibilidad se programan con margen respecto a estas cifras.</p></div></details>
+
+    <details class="rep"><summary><span class="k">Impedancia del electrodo</span><span class="v">A 480 Ω · V 560 Ω</span></summary>
+      <div class="body"><p>Detecta la integridad del electrodo. <strong>Alta</strong> o en aumento: fractura o mal contacto en el conector. <strong>Baja</strong>: falla del aislante. Un cambio de más del 50 % respecto al control previo se usa como alerta de seguimiento<sup class="r"><a href="#r16">16</a></sup>. El rango normal depende del modelo; compare con el propio historial.</p></div></details>
+
+    <details class="rep"><summary><span class="k">Episodios registrados</span><span class="v">3 AHRE · 1 TVNS de 6 latidos</span></summary>
+      <div class="body"><p>Arritmias auriculares de alta frecuencia (posible <strong>fibrilación auricular subclínica</strong>), taquicardia ventricular no sostenida y ritmos rápidos con respuesta ventricular alta. Un episodio de TVNS de 5 o más latidos o una respuesta ventricular rápida durante taquiarritmia auricular son alertas frecuentes de seguimiento<sup class="r"><a href="#r16">16</a></sup>. La carga de FA orienta la decisión de anticoagular junto con el riesgo embólico del paciente.</p></div></details>
+
+    <details class="rep"><summary><span class="k">Dependencia</span><span class="v">Ritmo de escape 35 lpm</span></summary>
+      <div class="body"><p>Si al bajar la frecuencia programada no aparece ritmo propio confiable, el paciente es <strong>dependiente</strong>: una falla del dispositivo o una inhibición inapropiada tiene consecuencias inmediatas. Esto cambia la conducta perioperatoria y ante cualquier sospecha de falla.</p></div></details>
+  </div>
+
+  <h3>Si es un DAI o un resincronizador</h3>
+  <ul>
+    <li><strong>Zonas de detección:</strong> FV, TV rápida y TV lenta, con la terapia programada para cada una (estimulación antitaquicardia, choque o solo monitoreo).</li>
+    <li><strong>Episodios:</strong> cada uno con electrograma almacenado. Es la única forma fiable de saber si un choque fue apropiado.</li>
+    <li><strong>Impedancia de alto voltaje</strong> y estado de carga del capacitor.</li>
+    <li><strong>TRC:</strong> porcentaje de estimulación biventricular efectiva. Se busca lo más cercano posible al 100 %; la FA con respuesta rápida y las extrasístoles ventriculares la reducen y explican muchos casos de falta de respuesta al tratamiento.</li>
+  </ul>
+
+  <div class="callout"><span class="tag">Lista rápida al recibir un informe</span>
+    <ol>
+      <li>¿Qué modo, qué frecuencia mínima, qué tipo de dispositivo?</li>
+      <li>¿Batería en ERI o EOL?</li>
+      <li>¿Umbral, sensado e impedancia estables frente al control anterior?</li>
+      <li>¿Cuánto estimula (AP, VP, BiV) y es coherente con la clínica?</li>
+      <li>¿Hubo arritmias registradas o terapias entregadas?</li>
+      <li>¿Está el paciente dependiente del marcapasos?</li>
+      <li>¿Se cambió algo en la programación durante la visita?</li>
+    </ol>
+  </div>
+  <p class="refs">Fuentes: <a href="#r13">13</a>, <a href="#r16">16</a>, <a href="#r33">33</a>, <a href="#r15">15</a>. El informe de ejemplo es una construcción didáctica.</p>
+</section>
+
+<section class="chapter" id="c3">
+  <p class="ch-label">Capítulo 3</p>
+  <h2>El ECG con marcapasos</h2>
+  <p class="lead">Un ECG estimulado se lee igual que cualquier otro, con un paso previo: identificar de dónde viene cada latido. Las espigas pueden ser muy pequeñas o faltar por completo con un ritmo propio normal.</p>
+
+  <h3>Los cuatro patrones de un dispositivo bicameral (DDD)</h3>
+  <p>Cada ciclo tiene un origen auricular (sensado o estimulado) y uno ventricular (sensado o estimulado). Son cuatro combinaciones:</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Patrón</th><th>Qué ocurre</th><th>Cuándo se ve</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">AS – VS</td><td>Onda P y QRS propios. El dispositivo solo vigila.</td><td>Ritmo propio y conducción normales. Sin espigas.</td></tr>
+      <tr><td class="mono">AS – VP</td><td>P propia seguida de espiga y QRS estimulado.</td><td>Bloqueo AV con nodo sinusal normal. El dispositivo sigue a la aurícula.</td></tr>
+      <tr><td class="mono">AP – VS</td><td>Espiga auricular, P estimulada y QRS propio.</td><td>Enfermedad del nodo con conducción AV intacta.</td></tr>
+      <tr><td class="mono">AP – VP</td><td>Dos espigas: P y QRS estimulados.</td><td>Enfermedad del nodo y del sistema de conducción.</td></tr>
+    </tbody>
+  </table></div>
+
+  <figure class="fig">
+    <div class="scroll" id="figDDD"></div>
+    <figcaption>Esquema de los cuatro patrones. Las líneas ámbar son espigas; el QRS estimulado es más ancho que el propio. Trazado ilustrativo, no un registro real.</figcaption>
+  </figure>
+
+  <h3>Cómo se ve cada forma de estimular el ventrículo</h3>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Sitio</th><th>QRS típico</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Ventrículo derecho</strong> (ápex o septo)</td><td>Ancho, con morfología de bloqueo de rama izquierda; con estimulación apical el eje es superior. Es la forma más común.</td></tr>
+      <tr><td><strong>Biventricular</strong> (TRC)</td><td>Suele ser más estrecho que el basal, con predominio de R en V1 por la activación desde la pared lateral del VI.</td></tr>
+      <tr><td><strong>Sistema de conducción</strong> (His o rama izquierda)</td><td>QRS estrecho o casi normal. La estimulación del área de la rama izquierda suele dar un patrón tipo bloqueo de rama derecha en V1, con QRS más estrecho que el de la estimulación del VD<sup class="r"><a href="#r32">32</a></sup>.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Situaciones que confunden</h3>
+  <ul>
+    <li><strong>Espigas bipolares muy pequeñas.</strong> Pueden no verse en el ECG de superficie. No equivalen a falla.</li>
+    <li><strong>Sin espigas con frecuencia sobre la mínima.</strong> El dispositivo está inhibido por el ritmo propio, que es su funcionamiento normal; una interrogación lo confirma<sup class="r"><a href="#r13">13</a></sup>.</li>
+    <li><strong>Latidos de fusión</strong> (parte del QRS propio, parte estimulado) y de <strong>pseudofusión</strong> (espiga sobre un QRS propio que no lo modifica): son normales.</li>
+    <li><strong>El monitor de cabecera</strong> puede subestimar la frecuencia por no contar las espigas o por sus filtros<sup class="r"><a href="#r13">13</a></sup>.</li>
+  </ul>
+
+  <div class="callout alert"><span class="tag">Dolor torácico con ritmo estimulado</span>
+    <p>La estimulación ventricular deforma la repolarización y dificulta reconocer el infarto. Aplique los criterios de Sgarbossa: elevación del ST concordante con el QRS, o depresión del ST concordante en V1–V3, orienta a isquemia. Correlacione con la clínica, la troponina y, si es preciso, con imagen. Compare siempre con un ECG previo estimulado.</p>
+  </div>
+
+  <h3>El imán</h3>
+  <ul>
+    <li><strong>En un marcapasos</strong> suele forzar estimulación asincrónica, a una frecuencia que depende del fabricante y del estado de la batería.</li>
+    <li><strong>En un DAI</strong> suspende la detección y las terapias de taquicardia, pero no cambia la estimulación antibradicardia.</li>
+    <li><strong>En un marcapasos sin cables Micra</strong> no hay respuesta magnética<sup class="r"><a href="#r29">29</a></sup>.</li>
+  </ul>
+  <p class="refs">Fuentes: <a href="#r13">13</a>, <a href="#r32">32</a>, <a href="#r29">29</a>, <a href="#r14">14</a>.</p>
+</section>
+
+<section class="chapter" id="c4">
+  <p class="ch-label">Capítulo 4</p>
+  <h2>Falla verdadera y falla aparente</h2>
+  <p class="lead">Cuatro fallas verdaderas cubren casi todo: falla de captura, falla de salida, sobresensado y subsensado<sup class="r"><a href="#r14">14</a></sup>. Antes de declarar una falla, descarte que sea un comportamiento programado.</p>
+
+  <figure class="fig">
+    <div class="scroll" id="figFail"></div>
+    <figcaption>Las cuatro fallas verdaderas, en trazado ilustrativo con dispositivo ventricular. Las líneas ámbar son espigas.</figcaption>
+  </figure>
+
+  <div class="tablewrap"><table>
+    <thead><tr><th>Problema</th><th>En el ECG</th><th>Causas frecuentes</th><th>Qué hacer</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Falla de captura</strong></td><td>Espiga sin QRS (o P) que la siga. Frecuencia baja.</td><td>Desplazamiento o fractura del electrodo, umbral alto por hiperpotasemia, isquemia o fármacos, batería agotada.</td><td>Monitor, electrolitos, radiografía de tórax, interrogación urgente. Si hay inestabilidad: estimulación transcutánea o cronotrópicos como puente.</td></tr>
+      <tr><td><strong>Falla de salida</strong></td><td>Ausencia de espigas con frecuencia por debajo de la mínima.</td><td>Sobresensado, fractura del electrodo, batería agotada, inhibición cruzada entre cámaras (crosstalk).</td><td>Buscar la causa. En marcapasos, el imán puede restablecer estimulación asincrónica mientras llega la valoración.</td></tr>
+      <tr><td><strong>Sobresensado</strong></td><td>Pausas: el dispositivo interpreta como propia una señal que no lo es y se inhibe.</td><td>Miopotenciales, ondas T o P grandes, interferencia electromagnética, fractura del electrodo.</td><td>Alejar la fuente. Maniobra de contracción pectoral. Interrogación para ajustar la sensibilidad.</td></tr>
+      <tr><td><strong>Subsensado</strong></td><td>Espigas fuera de tiempo respecto al ritmo propio; sobreestimulación.</td><td>Onda R o P de baja amplitud, desplazamiento del electrodo, alteraciones metabólicas.</td><td>Interrogación. Riesgo de que una espiga caiga en la onda T.</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="callout alert"><span class="tag">Regla práctica</span>
+    <p>Si hay <strong>sobreestimulación</strong>, sospeche subsensado. Si hay <strong>subestimulación</strong>, sospeche sobresensado<sup class="r"><a href="#r41">41</a></sup>. Si el ritmo propio del paciente supera la frecuencia mínima, la falla de captura y de salida no se ven en el ECG<sup class="r"><a href="#r38">38</a></sup>.</p>
+  </div>
+
+  <h3>Taquicardia mediada por el marcapasos</h3>
+  <p>En un dispositivo bicameral, un latido ventricular puede conducirse hacia atrás a la aurícula. El dispositivo sensa esa onda P retrógrada y estimula el ventrículo de nuevo, cerrando un circuito que mantiene una taquicardia regular al límite superior. El imán suele interrumpirla porque pasa el dispositivo a estimulación asincrónica.</p>
+
+  <h3>Cuando parece una falla y no lo es</h3>
+  <ul>
+    <li><strong>Histéresis:</strong> permite un ritmo propio más lento que la frecuencia mínima antes de estimular.</li>
+    <li><strong>Cambio automático de modo</strong> ante taquiarritmias auriculares.</li>
+    <li><strong>Algoritmos que minimizan la estimulación ventricular:</strong> pueden mostrar bloqueos AV transitorios o pausas con onda P sin QRS que parecen una falla.</li>
+    <li><strong>Algoritmos que evitan competencia auricular</strong> y producen intervalos AV cortos ocasionales<sup class="r"><a href="#r30">30</a></sup>.</li>
+    <li><strong>Estimulación de seguridad ventricular</strong> ante señales cruzadas entre cámaras.</li>
+    <li><strong>Frecuencia nocturna o de descanso</strong> más baja que la mínima diurna.</li>
+  </ul>
+  <p>Muchos de estos comportamientos dependen del fabricante. Si el patrón es persistente y el paciente tiene síntomas, la interrogación resuelve la duda.</p>
+
+  <div class="callout tip"><span class="tag">Primer abordaje en urgencias</span>
+    <ol>
+      <li>Estabilidad hemodinámica y monitorización continua.</li>
+      <li>ECG de 12 derivaciones, electrolitos (potasio en particular) y troponina si hay clínica isquémica.</li>
+      <li>Radiografía de tórax: posición y continuidad de los electrodos, conectores.</li>
+      <li>Identificar el dispositivo y pedir interrogación urgente.</li>
+      <li>Si hay inestabilidad, tratarla sin esperar la interrogación (atropina, cronotrópicos, estimulación transcutánea).</li>
+    </ol>
+  </div>
+  <p class="refs">Fuentes: <a href="#r14">14</a>, <a href="#r30">30</a>, <a href="#r38">38</a>, <a href="#r41">41</a>.</p>
+</section>
+<section class="chapter" id="c5">
+  <p class="ch-label">Capítulo 5</p>
+  <h2>DAI: terapias, episodios y qué hacer ante un choque</h2>
+  <p class="lead">Un paciente con DAI que recibe un choque llega a urgencias asustado y con una pregunta clínica concreta: ¿fue necesario? La respuesta está en el electrograma almacenado, no en el ECG de superficie.</p>
+
+  <h3>Quién lleva un DAI</h3>
+  <ul>
+    <li><strong>Prevención secundaria:</strong> sobrevivientes de paro por TV/FV sin causa reversible o con TV sostenida con daño estructural<sup class="r"><a href="#r5">5</a></sup>.</li>
+    <li><strong>Prevención primaria:</strong> principalmente FEVI ≤ 35 % con síntomas pese a al menos tres meses de tratamiento médico óptimo y expectativa de vida razonable<sup class="r"><a href="#r6">6</a></sup>. Tras un infarto se revalúa la FEVI a las 6–12 semanas si al alta era ≤ 40 %<sup class="r"><a href="#r37">37</a></sup>.</li>
+    <li>La guía europea de 2022 bajó la fuerza de la recomendación en algunos escenarios, y el beneficio del DAI es incierto en mayores de 75 años<sup class="r"><a href="#r36">36</a></sup>. Estas decisiones son del equipo de insuficiencia cardiaca y electrofisiología.</li>
+  </ul>
+
+  <h3>Qué puede hacer el dispositivo ante una taquicardia</h3>
+  <ol>
+    <li><strong>Estimulación antitaquicardia (ATP):</strong> ráfagas rápidas de estimulación que terminan muchas TV sin que el paciente lo note.</li>
+    <li><strong>Cardioversión o choque:</strong> si el ATP falla o la taquicardia es demasiado rápida.</li>
+    <li><strong>Solo monitoreo:</strong> zonas lentas que se registran sin tratar.</li>
+  </ol>
+
+  <div class="callout tip"><span class="tag">Una imagen para entender el ATP</span>
+    <p>Imagine un automóvil que circula a 150 km/h por una vía cerrada. Otro vehículo se incorpora por delante, un poco más rápido, y luego frena: el que venía detrás debe frenar también y sale del ritmo peligroso. El ATP hace algo parecido: el dispositivo emite una ráfaga de impulsos <strong>ligeramente más rápida que la taquicardia</strong>, «se cuela» en el circuito de la arritmia y la interrumpe, sin que el paciente sienta un choque.</p>
+    <p>Otra forma de verlo: la TV es un corredor que da vueltas sin parar en una pista circular persiguiendo su propia cola. El ATP mete a un segundo corredor más veloz que bloquea el paso y el círculo se rompe. <em>Precisión:</em> la arritmia no se enlentece poco a poco; se corta de una vez, y si no se corta el dispositivo pasa al choque.</p>
+  </div>
+
+  <h3>Tipos de choque</h3>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Tipo</th><th>Qué es</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Apropiado</strong></td><td>Tratamiento de una TV o FV real. Las arritmias ventriculares son la causa más común de choque.</td></tr>
+      <tr><td><strong>Inapropiado</strong></td><td>Ritmo no letal interpretado como TV/FV. Las dos causas principales son las taquiarritmias supraventriculares (sobre todo FA con respuesta rápida) y la disfunción del dispositivo<sup class="r"><a href="#r17">17</a></sup>.</td></tr>
+      <tr><td><strong>Fantasma</strong></td><td>El paciente siente un choque que el dispositivo no entregó.</td></tr>
+      <tr><td><strong>Tormenta eléctrica</strong></td><td>TV sostenida de más de 30 segundos, o tres o más episodios distintos de TV/FV en 24 horas con terapia del dispositivo<sup class="r"><a href="#r17">17</a></sup>.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Cómo decidir la conducta</h3>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Situación</th><th>Conducta</th></tr></thead>
+    <tbody>
+      <tr><td>Un choque aislado, paciente asintomático y estable</td><td>No siempre requiere ingreso. Se puede valorar en la clínica de dispositivos o por transmisión remota, sin demora<sup class="r"><a href="#r35">35</a></sup>.</td></tr>
+      <tr><td>Choque con síntomas, inestabilidad o factor precipitante evidente (isquemia, sepsis, descompensación)</td><td>Ingreso, monitoreo continuo y tratamiento de la causa<sup class="r"><a href="#r17">17</a></sup>.</td></tr>
+      <tr><td>Choques múltiples o tormenta eléctrica</td><td>Ingreso. Sedación, betabloqueador, amiodarona, corregir potasio y magnesio y tratar isquemia o falla cardiaca; interconsulta urgente con electrofisiología.</td></tr>
+      <tr><td>Choques repetidos que parecen inapropiados</td><td>El imán suspende las terapias de taquicardia y evita choques; con monitoreo continuo y desfibrilador externo a mano porque el paciente queda sin protección<sup class="r"><a href="#r17">17</a></sup>.</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="callout"><span class="tag">Qué buscar tras un choque</span>
+    <ul>
+      <li>ECG, electrolitos (K, Mg), troponina si hay clínica de isquemia, función renal y evidencia de descompensación cardiaca.</li>
+      <li>Fármacos proarrítmicos o interacciones recientes.</li>
+      <li>Interrogación completa: el electrograma dice si fue TV/FV real, FA rápida, ruido o sobresensado por fractura del electrodo.</li>
+      <li>El riesgo de muerte es mayor en pacientes que reciben choques, sean apropiados o no; conviene tomarlos en serio<sup class="r"><a href="#r18">18</a></sup>.</li>
+    </ul>
+  </div>
+
+  <h3>Desfibrilación y cardioversión en un portador</h3>
+  <p>No retrase una desfibrilación necesaria por el dispositivo. Coloque los parches lo más lejos posible del generador, de preferencia en posición anteroposterior, y solicite interrogación después del choque externo para comprobar los umbrales y la programación.</p>
+
+  <h3>Final de la vida</h3>
+  <p>El marcapasos no necesita apagarse. Las terapias de un DAI sí pueden desactivarse cuando el paciente está muriendo o rechaza la reanimación, porque los choques causan sufrimiento; se hace con el equipo de dispositivos y la familia informada<sup class="r"><a href="#r27">27</a></sup>.</p>
+  <p class="refs">Fuentes: <a href="#r5">5</a>, <a href="#r6">6</a>, <a href="#r17">17</a>, <a href="#r18">18</a>, <a href="#r27">27</a>, <a href="#r35">35</a>, <a href="#r36">36</a>, <a href="#r37">37</a>.</p>
+</section>
+
+<section class="chapter" id="c6">
+  <p class="ch-label">Capítulo 6</p>
+  <h2>Resincronizadores y estimulación fisiológica</h2>
+  <p class="lead">Estimular desde el ápex del ventrículo derecho retrasa la activación del ventrículo izquierdo y, con el tiempo, puede deteriorar su función. Los resincronizadores y la estimulación del sistema de conducción intentan evitarlo.</p>
+
+  <h3>Terapia de resincronización cardiaca (TRC)</h3>
+  <p>Un tercer electrodo en el seno coronario activa la pared lateral del ventrículo izquierdo casi a la vez que el septo. Existen dos versiones: CRT-P (solo estimula) y CRT-D (además desfibrila). La guía ESC 2021 formula así las indicaciones en pacientes con insuficiencia cardiaca sintomática y ritmo sinusal<sup class="r"><a href="#r1">1</a></sup>:</p>
+  <ul>
+    <li><strong>Se recomienda</strong> (clase I) con FEVI ≤ 35 %, QRS ≥ 150 ms y morfología de bloqueo de rama izquierda.</li>
+    <li><strong>Debe considerarse</strong> (clase IIa) con FEVI ≤ 35 % y bloqueo de rama izquierda con QRS de 130-149 ms, o con QRS ≥ 150 ms sin morfología de bloqueo de rama izquierda.</li>
+    <li>En fibrilación auricular, <strong>debe considerarse</strong> con FEVI ≤ 35 %, clase funcional III-IV y QRS intrínseco ≥ 130 ms, siempre que exista una estrategia que asegure la captura biventricular.</li>
+  </ul>
+  <p>Para quienes ya necesitan marcapasos: «los pacientes con FEVI &lt; 40 % y estimulación ventricular derecha prevista &gt; 20 %, o sometidos a ablación del nodo AV con FEVI &lt; 50 %, deben recibir TRC»<sup class="r"><a href="#r1">1</a></sup>. Las guías estadounidenses son menos categóricas en este punto<sup class="r"><a href="#r34">34</a></sup>.</p>
+
+  <div class="callout tip"><span class="tag">Punto clave para leer un informe de TRC</span>
+    <p>El dato central es el <strong>porcentaje de estimulación biventricular efectiva</strong>. Un valor bajo se debe a FA con respuesta rápida, extrasístoles ventriculares frecuentes, latidos de fusión o pérdida de captura del electrodo izquierdo. Un paciente que «no responde» a la TRC merece primero una interrogación, no más medicación.</p>
+  </div>
+
+  <h3>Miocardiopatía inducida por estimulación</h3>
+  <p>La estimulación ventricular derecha crónica, sobre todo con porcentajes altos, puede reducir la FEVI y producir insuficiencia cardiaca. Cuando se espera estimulación ventricular superior al 40 % del tiempo, la guía de 2018 prefiere técnicas más fisiológicas (TRC o His) frente a la estimulación del ventrículo derecho<sup class="r"><a href="#r33">33</a></sup>. La guía de 2023 de HRS/APHRS/LAHRS ordena estas opciones, e incluye la estimulación del sistema de conducción<sup class="r"><a href="#r3">3</a></sup>.</p>
+
+  <h3>Estimulación del sistema de conducción</h3>
+  <p>Estimula directamente el haz de His o el área de la rama izquierda para activar los ventrículos por su vía natural.</p>
+  <ul>
+    <li><strong>Estimulación del haz de His:</strong> la más fisiológica, pero con umbrales más altos y dificultades de sensado.</li>
+    <li><strong>Estimulación del área de la rama izquierda (LBBAP):</strong> más sencilla de implantar y con menos de esos inconvenientes<sup class="r"><a href="#r32">32</a></sup>.</li>
+    <li>El consenso ESC/EHRA de 2025 compara sus indicaciones con las de la estimulación del ventrículo derecho y la biventricular<sup class="r"><a href="#r4">4</a></sup>. La evidencia de ensayos aleatorizados sigue creciendo.</li>
+  </ul>
+
+  <div class="callout"><span class="tag">Lo que cambia para el no cardiólogo</span>
+    <ul>
+      <li>El ECG estimulado puede parecer casi normal; no descarte un dispositivo por un QRS estrecho.</li>
+      <li>Al pedir un ecocardiograma en un portador de TRC, la FEVI se reevalúa habitualmente entre los tres y seis meses.</li>
+      <li>La mejoría esperada incluye síntomas y FEVI, pero no todos los pacientes responden.</li>
+    </ul>
+  </div>
+  <p class="refs">Fuentes: <a href="#r1">1</a>, <a href="#r3">3</a>, <a href="#r4">4</a>, <a href="#r32">32</a>, <a href="#r33">33</a>, <a href="#r34">34</a>.</p>
+</section>
+
+<section class="chapter" id="c7">
+  <p class="ch-label">Capítulo 7</p>
+  <h2>Marcapasos sin cables, DAI subcutáneo y extravascular</h2>
+  <p class="lead">Son dispositivos que evitan el bolsillo o los electrodos intravasculares, las dos fuentes principales de complicaciones tardías del sistema tradicional. Tienen indicaciones y límites propios.</p>
+
+  <h3>Marcapasos sin cables</h3>
+  <ul>
+    <li>Dos sistemas: <strong>Micra</strong> (Medtronic, aprobado por la FDA en 2016) y <strong>Aveir</strong> (Abbott, 2022)<sup class="r"><a href="#r7">7</a></sup>.</li>
+    <li>Nacieron como marcapasos ventriculares de una cámara. Hoy existe Micra AV (sensa la aurícula y permite estimulación tipo VDD) y Aveir DR, que logra estimulación bicameral con dos cápsulas<sup class="r"><a href="#r8">8</a></sup>.</li>
+    <li>Se implantan por vía femoral. Ambos sistemas son compatibles con RM en condiciones: Aveir a 1,5 T y Micra también a 3 T<sup class="r"><a href="#r8">8</a></sup>.</li>
+  </ul>
+
+  <div class="tablewrap"><table>
+    <thead><tr><th>Ventajas</th><th>Riesgos y límites</th></tr></thead>
+    <tbody><tr>
+      <td><ul><li>Sin bolsillo ni electrodos, con menos complicaciones locales e infecciones<sup class="r"><a href="#r8">8</a></sup>.</li><li>En el registro de Micra, menos complicaciones a seis meses que con marcapasos transvenoso (HR 0,77)<sup class="r"><a href="#r7">7</a></sup>.</li><li>Los datos de Aveir en Medicare muestran menos complicaciones agudas que el sistema transvenoso de una cámara<sup class="r"><a href="#r39">39</a></sup>.</li></ul></td>
+      <td><ul><li>Perforación y derrame pericárdico durante el implante.</li><li>Desplazamiento de la cápsula y complicaciones del acceso femoral.</li><li>Sin respuesta al imán en Micra<sup class="r"><a href="#r29">29</a></sup>.</li><li>La extracción es limitada con el tiempo por la encapsulación.</li><li>Comparaciones directas entre Micra y Aveir son observacionales y de seguimiento corto<sup class="r"><a href="#r10">10</a></sup>.</li></ul></td>
+    </tr></tbody>
+  </table></div>
+
+  <div class="callout alert"><span class="tag">En urgencias</span>
+    <p>Hipotensión o dolor torácico horas o días después de implantar un dispositivo intracardiaco: piense en <strong>derrame pericárdico y taponamiento</strong> y solicite un ecocardiograma inmediato. La estimulación transcutánea funciona igual en estos pacientes.</p>
+  </div>
+
+  <h3>DAI subcutáneo (S-ICD)</h3>
+  <ul>
+    <li>Todo el sistema queda fuera de la cavidad torácica. Ideal en jóvenes, con acceso venoso difícil o alto riesgo de bacteriemia.</li>
+    <li>Está pensado para pacientes <strong>sin indicación de estimulación</strong> antibradicardia ni de resincronización, y sin TV terminable con estimulación<sup class="r"><a href="#r11">11</a></sup>.</li>
+  </ul>
+
+  <h3>DAI extravascular (EV-ICD)</h3>
+  <ul>
+    <li>Electrodo bajo el esternón. Aprobado por la FDA en 2023<sup class="r"><a href="#r12">12</a></sup>.</li>
+    <li>A diferencia del subcutáneo puede entregar estimulación antitaquicardia y estimulación limitada, con energías de choque menores<sup class="r"><a href="#r12">12</a></sup>.</li>
+    <li>Opción atractiva si no hay esternotomía previa ni indicación de estimulación o resincronización<sup class="r"><a href="#r12">12</a></sup>.</li>
+  </ul>
+  <p class="refs">Fuentes: <a href="#r7">7</a>, <a href="#r8">8</a>, <a href="#r9">9</a>, <a href="#r10">10</a>, <a href="#r11">11</a>, <a href="#r12">12</a>, <a href="#r29">29</a>, <a href="#r39">39</a>, <a href="#r40">40</a>.</p>
+</section>
+
+<section class="chapter" id="c8">
+  <p class="ch-label">Capítulo 8</p>
+  <h2>Cirugía, resonancia, radioterapia e imán</h2>
+  <p class="lead">Los dispositivos modernos soportan bien casi todos los procedimientos, siempre que alguien haya pensado antes en ellos. La regla es preguntar por el dispositivo antes, no después.</p>
+
+  <h3>Antes de una cirugía</h3>
+  <ol>
+    <li>Confirmar que el paciente tiene un dispositivo y de qué tipo.</li>
+    <li>Conocer la fecha de la última interrogación. El consenso HRS/ASA de 2011 sugiere un control en los últimos 12 meses para marcapasos y 6 para DAI y TRC.</li>
+    <li>Saber si es <strong>dependiente</strong> del marcapasos y cómo responde al imán<sup class="r"><a href="#r19">19</a></sup>.</li>
+    <li>Definir si se reprograma, y quién restituye la programación después.</li>
+  </ol>
+
+  <div class="callout"><span class="tag">Electrocauterio</span>
+    <ul>
+      <li>La interferencia es un riesgo real cuando el cauterio monopolar se usa por encima del ombligo. Por debajo, el riesgo de sobresensado es pequeño si la placa dispersiva está bien colocada<sup class="r"><a href="#r21">21</a></sup>.</li>
+      <li>La placa debe quedar de modo que la corriente no cruce por el generador ni por los electrodos.</li>
+      <li>Ráfagas cortas y el cauterio bipolar reducen el riesgo.</li>
+    </ul>
+  </div>
+
+  <div class="callout alert"><span class="tag">Sobre el imán</span>
+    <p>La guía de la ASA de 2020 desaconseja el uso indiscriminado de un imán sobre un DAI, y otros documentos coinciden en que hay que conocer la respuesta al imán del dispositivo antes de aplicarlo<sup class="r"><a href="#r19">19</a></sup><sup class="r"><a href="#r21">21</a></sup>. En un DAI, el imán suspende las terapias: hay que tener desfibrilador externo y parches listos. En un marcapasos, el imán puede provocar estimulación asincrónica y competir con un ritmo propio.</p>
+  </div>
+
+  <ul>
+    <li>Al terminar el procedimiento hay que <strong>reactivar</strong> las terapias del DAI si se suspendieron y comprobar la función del dispositivo.</li>
+    <li>Las guías difieren en los detalles de la interrogación previa y del uso del imán; la declaración de la AHA propone vías de atención multidisciplinaria<sup class="r"><a href="#r20">20</a></sup>. La revisión de 2026 recuerda que las guías no dicen casi nada sobre los marcapasos sin cables, salvo que Micra no responde al imán<sup class="r"><a href="#r29">29</a></sup>.</li>
+  </ul>
+
+  <h3>Resonancia magnética</h3>
+  <ul>
+    <li>Los dispositivos «condicionales para RM» pueden explorarse siguiendo un protocolo con verificación antes y después del estudio, monitorización y personal capacitado<sup class="r"><a href="#r23">23</a></sup>.</li>
+    <li>Los dispositivos no condicionales y los electrodos abandonados también pueden explorarse con protocolo en centros con experiencia; la evidencia actual lo respalda<sup class="r"><a href="#r22">22</a></sup>.</li>
+    <li>En un DAI, las terapias de taquicardia se desactivan durante la exploración<sup class="r"><a href="#r23">23</a></sup>.</li>
+    <li>El documento de consenso HRS de 2017 sigue siendo el único de su tipo, y se anticipa su actualización<sup class="r"><a href="#r24">24</a></sup>.</li>
+  </ul>
+
+  <h3>Otros procedimientos</h3>
+  <p>Radioterapia, litotricia, diatermia, estimulación eléctrica nerviosa (TENS), terapia electroconvulsiva y otros equipos con energía electromagnética exigen una consulta previa con electrofisiología. En radioterapia importa la dosis acumulada en el generador, no solo el campo tratado.</p>
+  <p class="refs">Fuentes: <a href="#r19">19</a>, <a href="#r20">20</a>, <a href="#r21">21</a>, <a href="#r22">22</a>, <a href="#r23">23</a>, <a href="#r24">24</a>, <a href="#r29">29</a>. Los intervalos de control previos a cirugía (12 meses para marcapasos, 6 para DAI y TRC) provienen del consenso HRS/ASA 2011 (Crossley et al., Heart Rhythm 2011;8:1114), que no se revisó directamente para este manual.</p>
+</section>
+
+<section class="chapter" id="c9">
+  <p class="ch-label">Capítulo 9</p>
+  <h2>Infección del dispositivo y seguimiento remoto</h2>
+  <p class="lead">La infección del dispositivo es una complicación grave y a menudo subdiagnosticada. El seguimiento remoto es hoy el estándar de atención y genera alertas que también llegan a los médicos no cardiólogos.</p>
+
+  <h3>Infección: cuándo sospecharla</h3>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Forma</th><th>Datos que la sugieren</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Infección del bolsillo</strong></td><td>Eritema, induración, dolor o secreción en el bolsillo, con o sin fiebre. Dentro de los tres meses del implante sin otra causa, hay que considerarla<sup class="r"><a href="#r26">26</a></sup>.</td></tr>
+      <tr><td><strong>Infección del electrodo o endocarditis</strong></td><td>Dos o más hemocultivos positivos, sobre todo <em>Staphylococcus</em>, o vegetación en el electrodo o la válvula<sup class="r"><a href="#r26">26</a></sup>.</td></tr>
+      <tr><td><strong>Síntomas locales que no responden</strong></td><td>Si un cuadro superficial no mejora tras tres a cinco días de antibiótico, hay que pensar en infección del dispositivo<sup class="r"><a href="#r26">26</a></sup>.</td></tr>
+    </tbody>
+  </table></div>
+
+  <ol>
+    <li><strong>Hemocultivos antes de dar antibiótico</strong>, varias muestras, también en signos de infección del bolsillo<sup class="r"><a href="#r26">26</a></sup>.</li>
+    <li>Ecocardiograma transesofágico y, si el diagnóstico sigue dudoso, PET/TC con FDG<sup class="r"><a href="#r26">26</a></sup><sup class="r"><a href="#r25">25</a></sup>.</li>
+    <li>No punzar ni drenar el bolsillo con aguja: puede contaminar el sistema.</li>
+    <li><strong>Tratamiento:</strong> la regla es retirar el sistema completo. Si no es posible, se considera conservar el dispositivo con supresión antimicrobiana prolongada<sup class="r"><a href="#r26">26</a></sup>. La decisión de reimplantar es diferida y requiere a electrofisiología.</li>
+  </ol>
+
+  <div class="callout alert"><span class="tag">Por qué importa</span>
+    <p>En una encuesta del Colegio Americano de Cardiología, solo el 30 % de los encuestados dijo que su hospital tenía una vía de atención basada en guías para la infección de dispositivos<sup class="r"><a href="#r42">42</a></sup>. El retraso en el diagnóstico y la extracción incompleta se asocian a peor pronóstico. Ante fiebre o bacteriemia en un portador de dispositivo, pregunte de inmediato si el dispositivo puede ser el foco.</p>
+  </div>
+
+  <h3>Seguimiento remoto</h3>
+  <p>Para pacientes con dispositivos cardiacos implantables, el monitoreo remoto es el estándar de atención<sup class="r"><a href="#r15">15</a></sup>. El dispositivo transmite datos de forma automática y la clínica recibe alertas.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Alerta habitual</th><th>Qué sugiere</th></tr></thead>
+    <tbody>
+      <tr><td>Cambio importante de impedancia (por ejemplo, más de 50 %)</td><td>Problema del electrodo<sup class="r"><a href="#r16">16</a></sup>.</td></tr>
+      <tr><td>Aumento de la estimulación ventricular</td><td>Progresión de la conducción o pérdida de conducción propia<sup class="r"><a href="#r16">16</a></sup>.</td></tr>
+      <tr><td>TV no sostenida o respuesta ventricular rápida en FA</td><td>Arritmias que cambian la conducta<sup class="r"><a href="#r16">16</a></sup>.</td></tr>
+      <tr><td>Batería en ERI</td><td>Programar recambio de generador.</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="callout tip"><span class="tag">Qué hacer si recibe una alerta o un informe</span>
+    <p>Compare con el informe anterior, lea el motivo de la alerta, correlacione con síntomas y contacte a la clínica de dispositivos. Guarde en la historia clínica el tipo de dispositivo, fabricante y fecha del último control.</p>
+  </div>
+
+  <h3>Consejos que puede dar al paciente</h3>
+  <ul>
+    <li>Llevar siempre la tarjeta del dispositivo.</li>
+    <li>Mantener el celular a distancia del generador y no guardarlo en el bolsillo del pecho.</li>
+    <li>Avisar a cualquier médico o dentista antes de un procedimiento.</li>
+    <li>Consultar de inmediato ante síncope, choque, fiebre o cambios en el bolsillo.</li>
+  </ul>
+  <p class="refs">Fuentes: <a href="#r15">15</a>, <a href="#r16">16</a>, <a href="#r25">25</a>, <a href="#r26">26</a>, <a href="#r42">42</a>.</p>
+</section>
+<section class="chapter" id="c10">
+  <p class="ch-label">Capítulo 10</p>
+  <h2>Banco de preguntas</h2>
+  <p class="lead">Treinta y cinco preguntas de opción múltiple, agrupadas por capítulo, con la explicación después de cada respuesta. Sirven para comprobar lo aprendido y para preparar una sesión clínica.</p>
+  <div class="quiz" id="quizRoot" aria-live="polite"></div>
+</section>
+
+<section class="chapter bib" id="bib" style="border-bottom:0">
+  <p class="ch-label">Referencias</p>
+  <h2>Bibliografía</h2>
+  <p class="lead">Guías, consensos y revisiones consultados en septiembre de 2026. Los enlaces de PMC y NCBI son de acceso libre; en los demás puede haber acceso solo al resumen.</p>
+  <div id="bibRoot"></div>
+</section>
+<footer class="end">
+  <p>Este manual resume y organiza literatura publicada. Ante una decisión clínica concreta, consulte el documento original y a electrofisiología. Las tablas de las guías originales tienen derechos reservados por sus sociedades; aquí se parafrasean.</p>
+  <p class="mono">Dr. Juan Fernando Carvajal Estupiñán · Versión 1.0 · septiembre de 2026</p>
+</footer>
+</main>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------- Traductor de código NBG ---------- */
+var A={A:"la aurícula",V:"el ventrículo",D:"ambas cámaras",O:"ninguna cámara"};
+function nbg(){
+  var a=document.getElementById("nbgA").value,b=document.getElementById("nbgB").value,c=document.getElementById("nbgC").value,r=document.getElementById("nbgR").checked;
+  var code=a+b+c+(r?"R":"");
+  document.getElementById("nbgOut").textContent=code;
+  var txt="Estimula "+A[a]+" y sensa "+A[b]+". ";
+  if(b==="O"||c==="O"){txt+="Sin respuesta al sensado: estimula a frecuencia fija sin importar el ritmo propio (modo asincrónico, el que produce el imán). ";}
+  else if(c==="I"){txt+="Si detecta un latido propio, se inhibe y no estimula. ";}
+  else if(c==="T"){txt+="Si detecta un latido propio, dispara una espiga en respuesta. ";}
+  else{txt+="Responde de las dos formas: se inhibe en la cámara que detecta actividad y sincroniza la estimulación ventricular con la onda P. ";}
+  if(a==="V"&&b==="D"&&c==="D"){txt+="Ejemplo típico: VDD, con un solo electrodo que sensa la aurícula y estimula el ventrículo. ";}
+  if(r){txt+="La modulación de frecuencia (R) ajusta la frecuencia a la actividad del paciente mediante un sensor.";}
+  document.getElementById("nbgDesc").textContent=txt;
+}
+["nbgA","nbgB","nbgC","nbgR"].forEach(function(id){document.getElementById(id).addEventListener("change",nbg);});
+document.querySelectorAll("#nbgTool .chip").forEach(function(btn){
+  btn.addEventListener("click",function(){
+    var p=btn.getAttribute("data-p");
+    document.getElementById("nbgA").value=p[0];
+    document.getElementById("nbgB").value=p[1];
+    document.getElementById("nbgC").value=p[2];
+    document.getElementById("nbgR").checked=(p.length===4);
+    nbg();
+  });
+});
+nbg();
+
+/* ---------- Trazos ilustrativos ---------- */
+function strip(title,beats){
+  var base=52,H=90,x=12,d="M0 "+base+" L"+x+" "+base,sp="",tx="",nz="";
+  beats.forEach(function(b){
+    var x0=x;
+    if(b.as){sp+='<line class="sp" x1="'+x+'" y1="'+(base-2)+'" x2="'+x+'" y2="'+(base-26)+'"/>';x+=4;d+=" L"+x+" "+base;}
+    if(b.p){d+=" L"+x+" "+base+" Q"+(x+8)+" "+(base-14)+" "+(x+16)+" "+base;x+=16;}
+    if((b.q||b.vs)&&(b.p||b.as)){x+=(b.pr||16);d+=" L"+x+" "+base;}
+    if(b.vs){sp+='<line class="sp" x1="'+x+'" y1="'+(base-2)+'" x2="'+x+'" y2="'+(base-26)+'"/>';x+=4;d+=" L"+x+" "+base;}
+    if(b.q==="narrow"){
+      d+=" L"+(x+3)+" "+(base+6)+" L"+(x+8)+" "+(base-32)+" L"+(x+13)+" "+(base+9)+" L"+(x+17)+" "+base;x+=17;
+      d+=" L"+(x+10)+" "+base+" Q"+(x+22)+" "+(base-13)+" "+(x+34)+" "+base;x+=34;
+    } else if(b.q==="wide"){
+      d+=" C"+(x+6)+" "+(base-2)+" "+(x+9)+" "+(base-30)+" "+(x+20)+" "+(base-30)+" C"+(x+30)+" "+(base-30)+" "+(x+34)+" "+(base-6)+" "+(x+44)+" "+base;x+=44;
+      d+=" L"+(x+8)+" "+base+" Q"+(x+22)+" "+(base+12)+" "+(x+36)+" "+base;x+=36;
+    }
+    if(b.late){var lx=x0+b.late;sp+='<line class="sp" x1="'+lx+'" y1="'+(base-2)+'" x2="'+lx+'" y2="'+(base-24)+'"/>';}
+    var gap=(b.gap!==undefined)?b.gap:40;
+    if(b.noise){
+      var pts=[],nx;
+      for(nx=x+6;nx<x+gap-6;nx+=4){pts.push(nx+","+(base+((pts.length%2)?-4:4)));}
+      nz+='<polyline class="noise" points="'+pts.join(" ")+'"/>';
+    }
+    x+=gap;d+=" L"+x+" "+base;
+    if(b.lab){tx+='<text x="'+Math.max(x0,4)+'" y="'+(H-8)+'">'+b.lab+'</text>';}
+  });
+  var W=Math.max(560,x+12);
+  d+=" L"+W+" "+base;
+  return '<div class="strip"><p class="strip-title">'+title+'</p><svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+title+'"><path class="base" d="'+d+'"/>'+sp+nz+tx+'</svg></div>';
+}
+document.getElementById("figDDD").innerHTML=
+  strip("AS – VS · ritmo propio",[{p:1,q:"narrow",gap:46,lab:"P propia · QRS propio"},{p:1,q:"narrow",gap:46},{p:1,q:"narrow",gap:46}])+
+  strip("AS – VP · bloqueo AV",[{p:1,vs:1,q:"wide",gap:30,lab:"P propia · espiga · QRS ancho"},{p:1,vs:1,q:"wide",gap:30},{p:1,vs:1,q:"wide",gap:30}])+
+  strip("AP – VS · enfermedad del nodo",[{as:1,p:1,q:"narrow",gap:38,lab:"espiga auricular · QRS propio"},{as:1,p:1,q:"narrow",gap:38},{as:1,p:1,q:"narrow",gap:38}])+
+  strip("AP – VP · ambas estimuladas",[{as:1,p:1,vs:1,q:"wide",gap:26,lab:"dos espigas"},{as:1,p:1,vs:1,q:"wide",gap:26},{as:1,p:1,vs:1,q:"wide",gap:26}]);
+document.getElementById("figFail").innerHTML=
+  strip("Falla de captura",[{vs:1,q:"wide",gap:40},{vs:1,gap:70,lab:"espiga sin QRS"},{vs:1,q:"wide",gap:40},{vs:1,gap:70,lab:"espiga sin QRS"}])+
+  strip("Falla de salida",[{vs:1,q:"wide",gap:36},{vs:1,q:"wide",gap:36},{gap:150,lab:"pausa sin espigas"},{vs:1,q:"wide",gap:36}])+
+  strip("Sobresensado",[{vs:1,q:"wide",gap:36},{noise:1,gap:150,lab:"señal espuria que inhibe"},{vs:1,q:"wide",gap:36}])+
+  strip("Subsensado",[{q:"narrow",late:44,gap:60,lab:"espiga tras QRS propio"},{q:"narrow",late:44,gap:60},{q:"narrow",late:44,gap:60}]);
+
+/* ---------- Banco de preguntas ---------- */
+var CH={1:"Código y dispositivo",2:"El informe",3:"ECG estimulado",4:"Fallas",5:"DAI y choques",6:"TRC y fisiológica",7:"Sin cables y S-ICD",8:"Cirugía, RM e imán",9:"Infección y remoto"};
+var Q=[
+{c:1,q:"¿Qué describe el código VVIR?",o:["Estimula ambas cámaras y no sensa","Estimula y sensa el ventrículo, se inhibe ante un latido propio y ajusta su frecuencia a la actividad","Estimula la aurícula y sensa el ventrículo","Estimula el ventrículo y dispara ante lo sensado, sin modulación"],a:1,e:"V–V–I: estimula y sensa el ventrículo, se inhibe ante un latido propio. La R final indica modulación de frecuencia."},
+{c:1,q:"¿Cuál afirmación sobre un DAI transvenoso convencional es correcta?",o:["No puede estimular, solo desfibrila","Solo se implanta en pacientes con bloqueo AV","Además de tratar TV/FV, también puede estimular como un marcapasos","Nunca tiene electrodo en el ventrículo"],a:2,e:"Un DAI convencional tiene todas las funciones de un marcapasos además del tratamiento de las taquiarritmias ventriculares. Por eso un portador de DAI puede tener espigas en el ECG."},
+{c:1,q:"En la radiografía de tórax, ¿qué distingue el electrodo de un DAI del de un marcapasos?",o:["Es más corto","Tramos gruesos y radiopacos que corresponden a las bobinas de choque","Está siempre en el lado derecho","Entra por una vena diferente"],a:1,e:"Las bobinas de choque se ven como segmentos engrosados y radiopacos sobre el electrodo ventricular."},
+{c:2,q:"Paciente con marcapasos DDD, frecuencia mínima 60. El ECG muestra ritmo sinusal a 80 lpm sin espigas. ¿Cuál es la interpretación?",o:["Falla de salida","Falla de captura","Funcionamiento normal: el dispositivo está inhibido por el ritmo propio","Sobresensado"],a:2,e:"Con ritmo propio por encima de la frecuencia mínima el dispositivo se inhibe y no emite espigas. La interrogación puede confirmarlo."},
+{c:2,q:"Entre dos controles la impedancia de un electrodo cambia más del 50 %. ¿Qué sugiere?",o:["Batería agotada","Mejor captura","Posible problema del electrodo (fractura o falla del aislante) que merece revisión","Ninguna, es una variación normal"],a:2,e:"Un cambio de más del 50 % respecto al control anterior se usa como alerta en el seguimiento. Compare con el propio historial del paciente."},
+{c:2,q:"Paciente con estimulación ventricular derecha el 85 % del tiempo y FEVI en descenso. ¿Qué debe sospechar?",o:["Infección del dispositivo","Miocardiopatía inducida por estimulación","Falla del sensado auricular","Batería en ERI"],a:1,e:"La estimulación ventricular derecha crónica y frecuente puede deteriorar la función ventricular. Se valora pasar a estimulación más fisiológica."},
+{c:2,q:"¿Qué significa que la batería llegó a ERI?",o:["El dispositivo dejó de funcionar","Hay que retirarlo de inmediato","El electrodo se fracturó","Debe programarse el recambio del generador; aún quedan meses de funcionamiento"],a:3,e:"ERI es el indicador de recambio electivo. EOL es el fin de vida y sí implica urgencia."},
+{c:2,q:"Un paciente «dependiente de marcapasos» es aquel que:",o:["No tiene un ritmo de escape confiable si el dispositivo deja de estimular","Toma cronotrópicos","Tiene la batería baja","Solo usa modo AAI"],a:0,e:"La dependencia cambia la conducta perioperatoria y la urgencia ante cualquier sospecha de falla del dispositivo."},
+{c:3,q:"Tras una espiga, el QRS es ancho con morfología de bloqueo de rama izquierda. ¿Qué sitio de estimulación sugiere?",o:["Haz de His","Aurícula derecha","Ventrículo derecho","Es un ritmo propio"],a:2,e:"La estimulación desde el ventrículo derecho produce un QRS ancho con morfología de bloqueo de rama izquierda."},
+{c:3,q:"En un dispositivo DDD, ¿qué indica un patrón AP–VS?",o:["Bloqueo AV completo","Estimulación auricular con conducción AV propia","Estimulación solo ventricular","Falla de captura auricular"],a:1,e:"AP–VS: espiga auricular con P estimulada y QRS propio, típico de enfermedad del nodo sinusal con conducción AV intacta."},
+{c:3,q:"Paciente con ritmo estimulado y dolor torácico. ¿Qué ayuda a reconocer isquemia en ese ECG?",o:["Índice de Cornell","Criterios de Brugada","Criterios de Sgarbossa","Score de Wells"],a:2,e:"La elevación del ST concordante con el QRS o la depresión concordante en V1–V3 orientan a isquemia aun con estimulación ventricular. Compare con un ECG previo."},
+{c:3,q:"¿Cuál es la respuesta esperada de un marcapasos convencional al imán?",o:["Se apaga","Estimulación asincrónica a una frecuencia que depende del fabricante","Suspende solo las terapias de taquicardia","Aumenta su sensibilidad"],a:1,e:"En un marcapasos, el imán suele forzar estimulación asincrónica. En un DAI suspende las terapias de taquicardia."},
+{c:4,q:"Espigas visibles con frecuencia lenta y sin QRS después de ellas. ¿Qué diagnóstico corresponde?",o:["Subsensado","Sobresensado","Falla de salida","Falla de captura"],a:3,e:"Si la espiga no despolariza la cámara hay falla de captura: desplazamiento del electrodo, umbral alto, hiperpotasemia o batería agotada."},
+{c:4,q:"No hay espigas y la frecuencia está por debajo de la mínima programada. ¿Qué causa es frecuente?",o:["Sobresensado o fractura del electrodo","Ritmo propio rápido","Latido de fusión","Modulación de frecuencia"],a:0,e:"La falla de salida se debe a sobresensado, fractura o desplazamiento del electrodo, batería agotada o inhibición cruzada."},
+{c:4,q:"Ante sobreestimulación (espigas fuera de tiempo respecto al ritmo propio), ¿qué debe sospechar primero?",o:["Sobresensado","Subsensado","Falla de captura","Batería en ERI"],a:1,e:"El subsensado hace que el dispositivo no detecte la actividad propia y estimule de más. Regla: sobreestimulación, subsensado; subestimulación, sobresensado."},
+{c:4,q:"En una taquicardia mediada por el marcapasos, ¿qué maniobra suele interrumpirla?",o:["Atropina","Un imán sobre el generador","Cardioversión programada de rutina","Un betabloqueador"],a:1,e:"El imán pasa el dispositivo a estimulación asincrónica y rompe el circuito de conducción retrógrada."},
+{c:4,q:"¿Cuál de estos hallazgos NO indica falla del dispositivo?",o:["Espigas sin captura","Ritmo propio a 52 lpm con frecuencia mínima de 60 lpm e histéresis activada","Ausencia de espigas con bradicardia","Espigas que caen dentro de la onda T"],a:1,e:"La histéresis permite un ritmo propio más lento que la frecuencia mínima antes de estimular. Es una función programada."},
+{c:5,q:"¿Cómo se define la tormenta eléctrica en un portador de DAI?",o:["Cualquier choque","Dos choques en una semana","TV sostenida de más de 30 segundos o tres o más episodios distintos de TV/FV en 24 horas con terapia","FA rápida con un choque"],a:2,e:"La tormenta exige ingreso y evaluación urgente por electrofisiología."},
+{c:5,q:"¿Cuáles son las dos causas principales de choques inapropiados?",o:["TV monomorfa y FV","Taquiarritmias supraventriculares y disfunción del dispositivo","Hipotiroidismo y anemia","Solo interferencia de teléfonos celulares"],a:1,e:"La FA con respuesta rápida es la causa supraventricular más frecuente. El sobresensado por fractura del electrodo es la causa de disfunción más importante."},
+{c:5,q:"Un portador de DAI recibió un solo choque, está asintomático y estable. ¿Cuál es la conducta más adecuada?",o:["Ingreso obligatorio a cuidados intensivos","Valoración pronta con interrogación, en clínica o de forma remota","Ignorarlo","Desactivar el dispositivo"],a:1,e:"Un choque aislado sin inestabilidad puede valorarse en la clínica de dispositivos o de forma remota, sin demora."},
+{c:5,q:"Choques repetidos que parecen inapropiados. ¿Qué medida suspende las terapias?",o:["Un imán sobre el generador, con monitoreo continuo y desfibrilador externo listo","Amiodarona oral","Reposo en casa","Atropina intravenosa"],a:0,e:"El imán suspende la detección de taquicardias. El paciente queda sin protección, por eso se monitoriza y se tiene desfibrilador externo a mano."},
+{c:5,q:"¿Qué se debe hacer si un portador de DAI necesita desfibrilación externa?",o:["Está contraindicada","No debe retrasarse; parches lejos del generador, de preferencia anteroposterior, e interrogar después","Solo con un imán colocado","Solo tras apagar el dispositivo"],a:1,e:"No se retrasa una desfibrilación necesaria. Se comprueba el dispositivo después."},
+{c:5,q:"Paciente que rechaza reanimación y está en fase final. ¿Qué es correcto?",o:["El marcapasos siempre debe apagarse","Ambos dispositivos se retiran quirúrgicamente","No existe ninguna opción","Las terapias del DAI pueden desactivarse; el marcapasos no lo necesita"],a:3,e:"Los choques generan sufrimiento en la fase final. La decisión se toma con el equipo de dispositivos y la familia informada."},
+{c:6,q:"¿Quién tiene mayor probabilidad de responder a la TRC?",o:["Paciente con FEVI normal y QRS estrecho","Paciente asintomático con bloqueo de rama derecha","Paciente con bloqueo de rama izquierda, QRS ancho, FEVI baja y síntomas pese a tratamiento óptimo","Paciente con FA paroxística y FEVI 55 %"],a:2,e:"La respuesta es mayor con BRI y QRS ancho, FEVI baja y síntomas de insuficiencia cardiaca con tratamiento médico óptimo."},
+{c:6,q:"En el informe de un resincronizador, ¿cuál es el dato central?",o:["La longevidad estimada","El porcentaje de estimulación biventricular efectiva","La impedancia del electrodo auricular","La frecuencia máxima del sensor"],a:1,e:"Un porcentaje bajo explica muchos casos de falta de respuesta: FA rápida, extrasístoles, fusión o pérdida de captura."},
+{c:6,q:"Frente a la estimulación del haz de His, la estimulación del área de la rama izquierda:",o:["Requiere siempre más energía","No se puede sensar","No se relaciona con la conducción","Es más sencilla de implantar y evita parte de los problemas de sensado y umbral"],a:3,e:"La estimulación de la rama izquierda evita las desventajas de His (sensado difícil, umbrales más altos) y simplifica el implante."},
+{c:7,q:"¿Cuál de estos dispositivos no responde al imán?",o:["Micra (marcapasos sin cables)","Marcapasos convencional","DAI transvenoso","CRT-D"],a:0,e:"Las guías no dan indicaciones específicas para marcapasos sin cables, salvo que Micra no responde al imán."},
+{c:7,q:"¿Qué no puede ofrecer un DAI subcutáneo?",o:["Choque de desfibrilación","Estimulación antibradicardia, estimulación antitaquicardia ni resincronización","Detección de FV","Ubicación fuera de las cavidades cardiacas"],a:1,e:"Está pensado para pacientes sin necesidad de estimulación. El DAI extravascular sí puede dar estimulación antitaquicardia."},
+{c:7,q:"Horas después de implantar un marcapasos sin cables, el paciente tiene hipotensión y dolor torácico. ¿Qué debe sospechar y pedir?",o:["Derrame pericárdico o taponamiento; ecocardiograma inmediato","Infección del bolsillo; cultivos","Batería defectuosa; interrogación en 1 semana","Reacción alérgica; solo antihistamínicos"],a:0,e:"La perforación con derrame pericárdico es una complicación temprana conocida de los sistemas intracardiacos."},
+{c:8,q:"Cirugía infraumbilical con electrocauterio monopolar y placa dispersiva bien ubicada. ¿Qué riesgo de sobresensado hay?",o:["Muy alto, siempre hay que reprogramar","Imposible que ocurra","El riesgo es pequeño","Solo hay riesgo en marcapasos sin cables"],a:2,e:"Por debajo del ombligo el riesgo de sobresensado es pequeño si la placa está bien colocada y la corriente no pasa cerca del generador."},
+{c:8,q:"Sobre el imán en pacientes con DAI durante cirugía, la guía de la ASA de 2020:",o:["Recomienda usarlo siempre","Desaconseja el uso indiscriminado y pide conocer la respuesta del dispositivo","Prohíbe cualquier imán","Solo lo permite en marcapasos"],a:1,e:"Antes de usar un imán hay que saber cómo responde ese dispositivo y tener un plan para desfibrilar."},
+{c:8,q:"Un portador de DAI necesita una resonancia. ¿Qué es correcto?",o:["Nunca es posible","Es posible con protocolo; las terapias de taquicardia se desactivan durante el estudio","Solo si se retiran los electrodos","Solo si no hay electrodos abandonados"],a:1,e:"Con verificación antes y después, monitorización y personal capacitado, la RM es segura en la mayoría de los casos, incluso con dispositivos no condicionales o electrodos abandonados."},
+{c:9,q:"Bacteriemia por Staphylococcus en un portador de dispositivo. ¿Qué es lo primero?",o:["Antibiótico empírico sin cultivos","Hemocultivos antes de antibiótico y evaluación del dispositivo (ecocardiograma transesofágico, PET/TC si es necesario)","Drenar el bolsillo con aguja","Observar 48 horas"],a:1,e:"En un portador, la bacteriemia obliga a descartar infección del dispositivo. Los cultivos se toman antes del antibiótico, sin retrasarlo si el paciente está inestable."},
+{c:9,q:"¿Cuál es el tratamiento de una infección confirmada del dispositivo?",o:["Solo antibiótico oral","Cambiar únicamente el generador","Retirar el sistema completo, con reimplante diferido","Drenaje percutáneo del bolsillo"],a:2,e:"La regla es retirar el sistema. Si no es posible, se considera supresión antimicrobiana prolongada, con electrofisiología."},
+{c:9,q:"Sobre el seguimiento remoto de dispositivos cardiacos:",o:["Es opcional, sin evidencia","Solo sirve para DAI","Sustituye siempre la interrogación presencial","Es el estándar de atención en portadores de dispositivos"],a:3,e:"El monitoreo remoto se considera estándar de atención. Las alertas requieren una clínica de dispositivos que las reciba y actúe."}
+];
+var root=document.getElementById("quizRoot");
+var state={order:[],i:0,score:0,picked:null,answers:[]};
+function shuffle(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}return a;}
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function start(mix){
+  state.order=Q.map(function(_,i){return i;});
+  if(mix){shuffle(state.order);}
+  state.i=0;state.score=0;state.picked=null;state.answers=[];
+  draw();
+}
+function draw(){
+  if(state.i>=state.order.length){return end();}
+  var q=Q[state.order[state.i]],L=["A","B","C","D"];
+  var h='<div class="q-top"><span>Pregunta '+(state.i+1)+' de '+state.order.length+'</span><span>Cap. '+q.c+' · '+esc(CH[q.c])+'</span></div>';
+  h+='<div class="q-bar"><i style="width:'+((state.i/state.order.length)*100)+'%"></i></div>';
+  h+='<p class="q-prompt">'+esc(q.q)+'</p><div class="opts">';
+  q.o.forEach(function(t,k){h+='<button type="button" class="opt" data-k="'+k+'"><span class="l">'+L[k]+'</span><span>'+esc(t)+'</span></button>';});
+  h+='</div><div id="fb"></div>';
+  h+='<div class="q-opts"><label><input type="checkbox" id="mix"> Mezclar el orden al reiniciar</label></div>';
+  root.innerHTML=h;
+  root.querySelectorAll(".opt").forEach(function(b){b.addEventListener("click",function(){pick(+b.getAttribute("data-k"));});});
+  var mx=document.getElementById("mix");mx.checked=state.mix||false;mx.addEventListener("change",function(){state.mix=mx.checked;});
+}
+function pick(k){
+  if(state.picked!==null){return;}
+  var q=Q[state.order[state.i]];
+  state.picked=k;var ok=(k===q.a);if(ok){state.score++;}
+  state.answers.push({c:q.c,ok:ok});
+  root.querySelectorAll(".opt").forEach(function(b,idx){
+    b.disabled=true;
+    if(idx===q.a){b.classList.add("right");}
+    else if(idx===k){b.classList.add("wrong");}
+  });
+  var last=(state.i===state.order.length-1);
+  document.getElementById("fb").innerHTML='<div class="fb"><p class="verdict '+(ok?"ok":"no")+'">'+(ok?"Correcto":"Incorrecto")+'</p><p>'+esc(q.e)+'</p><div class="q-actions"><button type="button" class="btn" id="nx">'+(last?"Ver resultado":"Siguiente")+'</button><a href="#c'+q.c+'">Repasar el capítulo '+q.c+'</a></div></div>';
+  document.getElementById("nx").addEventListener("click",function(){state.i++;state.picked=null;draw();});
+  document.getElementById("nx").focus();
+}
+function end(){
+  var by={};state.answers.forEach(function(a){by[a.c]=by[a.c]||{n:0,ok:0};by[a.c].n++;if(a.ok){by[a.c].ok++;}});
+  var pct=Math.round(100*state.score/state.order.length);
+  var h='<div class="q-top"><span>Resultado</span></div><div class="q-bar"><i style="width:100%"></i></div>';
+  h+='<p class="score">'+state.score+' / '+state.order.length+'</p><p>'+pct+' % de respuestas correctas. Repase los capítulos con menos aciertos.</p><div class="bd">';
+  Object.keys(by).sort(function(a,b){return a-b;}).forEach(function(c){
+    h+='<div><span><a href="#c'+c+'">Cap. '+c+' · '+esc(CH[c])+'</a></span><span class="n">'+by[c].ok+' / '+by[c].n+'</span></div>';
+  });
+  h+='</div><div class="q-actions"><button type="button" class="btn" id="rs">Reiniciar</button></div>';
+  root.innerHTML=h;
+  document.getElementById("rs").addEventListener("click",function(){start(state.mix);});
+}
+start(false);
+
+/* ---------- Bibliografía ---------- */
+var B=[
+["Guías y consensos",[
+[1,"Glikson M, et al. 2021 ESC Guidelines on cardiac pacing and cardiac resynchronization therapy. Eur Heart J 2021;42:3427-3520.","https://academic.oup.com/eurheartj/article/42/35/3427/6358547"],
+[31,"ACC. 2021 ESC Guidelines on Cardiac Pacing and CRT: Key Points.","https://www.acc.org/Latest-in-Cardiology/ten-points-to-remember/2021/08/31/18/37/2021-ESC-Guidelines-on-Cardiac-Pacing-ESC-2021"],
+[2,"Kusumoto FM, et al. 2018 ACC/AHA/HRS Guideline on the Evaluation and Management of Patients With Bradycardia and Cardiac Conduction Delay. Circulation 2019.","https://www.ahajournals.org/doi/10.1161/CIR.0000000000000628"],
+[33,"ACC. Guidelines Made Simple: 2018 Bradycardia guideline (PDF).","https://www.acc.org/-/media/Non-Clinical/Files-PDFs-Excel-MS-Word-etc/Guidelines/2018/Guidelines_Made_Simple_2018_Bradycardia.pdf"],
+[3,"Chung MK, et al. 2023 HRS/APHRS/LAHRS Guideline on Cardiac Physiologic Pacing for the Avoidance and Mitigation of Heart Failure. Heart Rhythm 2023.","https://www.heartrhythmjournal.com/article/S1547-5271(23)02026-X/fulltext"],
+[4,"ESC Clinical Consensus Statement on Indications for Conduction System Pacing (EHRA). Europace 2025;27:euaf050.","https://academic.oup.com/europace/article/27/4/euaf050/8100402"],
+[32,"Conduction System Pacing: Where Are We in 2025? J Innov Card Rhythm Manag 2025.","https://pmc.ncbi.nlm.nih.gov/articles/PMC11784394/"],
+[5,"Zeppenfeld K, et al. 2022 ESC Guidelines for the management of patients with ventricular arrhythmias and the prevention of sudden cardiac death. Eur Heart J 2022;43:3997-4126.","https://pubmed.ncbi.nlm.nih.gov/36017572/"],
+[36,"Comments on the 2022 ESC guidelines on ventricular arrhythmias and sudden cardiac death. Rev Esp Cardiol 2023.","https://www.revespcardiol.org/en-comments-on-2022-esc-guidelines-articulo-S188558572200322X"],
+[37,"Medscape. Guideline essentials: 2022 ESC ventricular arrhythmias and SCD.","https://reference.medscape.com/cc2/p10/guideline-essentials-2022-esc-recommendations-ventricular-2023a10005g6"],
+[6,"Heidenreich PA, et al. 2022 AHA/ACC/HFSA Guideline for the Management of Heart Failure. Circulation 2022;145:e895-e1032.","https://www.ahajournals.org/doi/10.1161/CIR.0000000000001063"],
+[34,"ACC/AHA/HFSA 2022 and ESC 2021 guidelines on heart failure comparison. PMC.","https://pmc.ncbi.nlm.nih.gov/articles/PMC10192289/"]
+]],
+["Marcapasos sin cables y DAI extravascular",[
+[7,"Leadless Pacemakers: State of the Art and Selection of the Ideal Candidate. PMC.","https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10518884/"],
+[8,"Leadless pacemaker 5-year outcomes: good news? PMC 2025.","https://pmc.ncbi.nlm.nih.gov/articles/PMC12001797/"],
+[9,"Safety and efficacy of leadless pacemakers: systematic review and meta-analysis. Heart Rhythm O2 2025.","https://pubmed.ncbi.nlm.nih.gov/41908186/"],
+[10,"Micra versus Aveir leadless pacemakers: systematic review. Pacing Clin Electrophysiol 2026.","https://pubmed.ncbi.nlm.nih.gov/41981963/"],
+[39,"Aveir VR coverage with evidence development study. J Am Heart Assoc 2025.","https://www.ncbi.nlm.nih.gov/pmc/articles/PMC12684545/"],
+[40,"Leadless atrial versus transvenous pacing for sinus node dysfunction: leadless ARRIVE. Europace 2026.","https://academic.oup.com/europace/article/28/4/euag072/8653274"],
+[11,"A Contemporary Review of Subcutaneous and Extravascular Implantable Cardiac Defibrillators. 2026.","https://pubmed.ncbi.nlm.nih.gov/42255452/"],
+[12,"The extravascular ICD: Evolving paradigms in sudden death prevention. Heart Rhythm 2025.","https://www.heartrhythmjournal.com/article/S1547-5271(25)02931-5/fulltext"]
+]],
+[["Interrogación, fallas, choques y seguimiento remoto"][0],[
+[13,"Pacemakers and AICDs: Interrogation Reports and Interpretation of EKGs. Patient Care.","https://www.patientcareonline.com/view/pacemakers-and-aicds-interrogation-reports-and-interpretation-ekgs"],
+[28,"Pacemakers and AICDs: The ABCs. Patient Care.","https://www.patientcareonline.com/view/pacemakers-and-aicds-abcs"],
+[27,"Pacemakers & ICDs: 5 Pearls. ACP Online.","https://www.acponline.org/cme-moc/online-learning-center/pacemakers-icds-5-pearls-segment"],
+[14,"Pacemaker Troubleshooting: Common Clinical Scenarios. PMC.","https://pmc.ncbi.nlm.nih.gov/articles/PMC5067035"],
+[38,"Pacemaker Malfunction. Life in the Fast Lane.","https://litfl.com/pacemaker-malfunction-ecg-library/"],
+[41,"Assessment of Pacemaker Malfunction using ECG. ECGwaves.","https://ecgwaves.com/articles/assessment-of-pacemaker-malfunction-using-ecg"],
+[30,"Intermittent short atrioventricular delay in a dual chamber pacemaker during acute pulmonary edema. Ann Noninvasive Electrocardiol 2024.","https://www.ncbi.nlm.nih.gov/pmc/articles/PMC11656222/"],
+[15,"2023 HRS/EHRA/APHRS/LAHRS Expert Consensus Statement on Practical Management of the Remote Device Clinic. Europace 2023.","https://academic.oup.com/europace/article/25/5/euad123/7174093"],
+[16,"Design of the PREFER trial (remote pacemaker follow-up). PMC.","https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2311273/"],
+[17,"ED evaluation and management of implantable cardiac defibrillator electrical shocks. Am J Emerg Med 2016.","https://www.sciencedirect.com/science/article/abs/pii/S0735675716001674"],
+[35,"Management of patients receiving ICD shocks: recommendations for acute and long-term management. Europace 2010.","https://academic.oup.com/europace/article/12/12/1673/431085"],
+[18,"Optimal Strategies to Reduce Inappropriate ICD Shocks. J Innov Card Rhythm Manag 2019.","https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7252710/"]
+]],
+[["Cirugía, resonancia e infección"][0],[
+[19,"ASA Perioperative Management of Patients with CIEDs: guideline summary.","https://www.guidelinecentral.com/guideline/9064/"],
+[20,"Periprocedural Management and Multidisciplinary Care Pathways for Patients With CIEDs: AHA Scientific Statement. Circulation.","https://www.ahajournals.org/doi/10.1161/CIR.0000000000001264"],
+[21,"Change of Pace: Perioperative Management of CIEDs. APSF.","https://www.apsf.org/article/change-of-pace-an-update-on-the-perioperative-management-of-cardiovascular-implantable-electronic-devices-cieds/"],
+[29,"Perioperative management of CIEDs: a state of the art narrative review. J Thorac Dis 2026.","https://jtd.amegroups.org/article/view/118511/html"],
+[22,"SCMR expert consensus statement for CMR of patients with a CIED. J Cardiovasc Magn Reson 2024.","https://www.ncbi.nlm.nih.gov/pmc/articles/PMC11211236/"],
+[23,"Current State of MRI With Cardiac Devices. ACC 2024.","https://www.acc.org/Latest-in-Cardiology/Articles/2024/05/21/10/30/Current-State-of-MRI-With-Cardiac-Devices"],
+[24,"HRS call-to-action: Improved MRI access for patients with CIEDs. Heart Rhythm 2025.","https://www.heartrhythmjournal.com/article/S1547-5271(25)02347-1/fulltext"],
+[25,"Update on CIED Infections: Scientific Statement From the AHA. Circulation 2024;149:e201-e216.","https://doi.org/10.1161/CIR.0000000000001187"],
+[26,"Medscape. CIED infections: AHA 2024 guideline summary.","https://reference.medscape.com/cc2/p10/guideline-essentials-2024-aha-update-prevention-diagnosis-2024a10008md"],
+[42,"(In)COGNITO: factores que explican la divergencia con el manejo guiado por guías de la infección de CIED. JACC Advances 2024.","https://www.ncbi.nlm.nih.gov/pmc/articles/PMC11198102/"]
+]]
+];
+var bh="";
+B.forEach(function(g){
+  bh+='<h3>'+esc(g[0])+'</h3><ol>';
+  g[1].forEach(function(r){bh+='<li id="r'+r[0]+'"><span class="n">'+r[0]+'</span><span>'+esc(r[1])+' <a href="'+r[2]+'" target="_blank" rel="noopener">Abrir</a></span></li>';});
+  bh+='</ol>';
+});
+document.getElementById("bibRoot").innerHTML=bh;
+
+/* ---------- Índice activo ---------- */
+var links=document.querySelectorAll(".toc a");
+var map={};links.forEach(function(a){map[a.getAttribute("href").slice(1)]=a;});
+if("IntersectionObserver" in window){
+  var io=new IntersectionObserver(function(es){
+    es.forEach(function(e){
+      if(e.isIntersecting){
+        links.forEach(function(a){a.removeAttribute("aria-current");});
+        var l=map[e.target.id];if(l){l.setAttribute("aria-current","true");}
+      }
+    });
+  },{rootMargin:"-20% 0px -70% 0px"});
+  Object.keys(map).forEach(function(id){var el=document.getElementById(id);if(el){io.observe(el);}});
+}
+})();
+</script>
